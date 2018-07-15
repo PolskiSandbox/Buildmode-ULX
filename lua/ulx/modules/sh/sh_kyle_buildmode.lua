@@ -1,10 +1,10 @@
 local function _kyle_Buildmode_Enable(z)
-    z:SendLua("GAMEMODE:AddNotify(\"Buildmode enabled. Type !pvp to disable\",NOTIFY_GENERIC, 5)")
+    z:SendLua("GAMEMODE:AddNotify(\"Włączono tryb budowania (masz goda i nie możesz zabijać), !pvp aby wyłączyć.\",NOTIFY_GENERIC, 8)")
 	if z:Alive() then
 		ULib.getSpawnInfo( z )
 		if _Kyle_Buildmode["restrictweapons"]=="1" then
 			z:StripWeapons()
-			for x,y in pairs(_Kyle_Buildmode["buildloadout"]) do 
+			for x,y in pairs(_Kyle_Buildmode["buildloadout"]) do
 				z:Give(y)
 			end
 		end
@@ -17,68 +17,97 @@ end
 local function _kyle_Buildmode_Disable(z)
 	if z:Alive() then
 		local pos = z:GetPos()
-		
+
 		if _Kyle_Buildmode["killonpvp"]=="1" and z:InVehicle() then
 			z:ExitVehicle()
 		end
-		
+
 		if _Kyle_Buildmode["restrictweapons"]=="1" and not z:GetNWBool("_Kyle_BuildmodeOnSpawn") then
 			ULib.spawn( z, true ) --Returns the player to spawn with the weapons they had before entering buildmode
 		end
-		
+
 		if _Kyle_Buildmode["killonpvp"]=="1" then
 			ULib.spawn( z, false)  --Returns the player to spawn
 		end
-		
+
 		if _Kyle_Buildmode["restrictweapons"]=="1" and z:GetNWBool("_Kyle_BuildmodeOnSpawn") then
 			z:ConCommand("kylebuildmode defaultloadout") --called when buildmode is disabled after spawning with it enabled
 		end
-		
+
 		if _Kyle_Buildmode["killonpvp"]=="0" then
 			z:SetPos( pos ) --Returns the player to where they where when they disabled buildmode
 		end
-		
+
 		if 	z:GetNWBool("kylenocliped") then
 			z:ConCommand( "noclip" ) --called when the player had noclip while in buildmode
 		end
 	end
-	
+
 	z.buildmode = false
-	z:SendLua("GAMEMODE:AddNotify(\"Buildmode disabled.\",NOTIFY_GENERIC, 5)")
+	z:SendLua("GAMEMODE:AddNotify(\"Włączono tryb PVP (możesz strzelać się z innymi graczami w PVP), !build aby wyłączyć.\",NOTIFY_GENERIC, 5)")
 	z:SetNWBool("_Kyle_Buildmode",false)
 end
 
-hook.Add("PreDrawHalos", "KyleBuildmodehalos", function()
-	if _Kyle_Buildmode["highlightbuilders"] then
-		local w = {}
-		local x = {}
-		local z = {}
+hook.Add("HUDPaint", "KyleBuildmodehalos", function()
+
+
 		for y,z in pairs(player.GetAll()) do
-			if z:Alive() then
-				if z:GetNWBool("_Kyle_Buildmode") then
-					table.insert(w, z)
-				else
-					table.insert(x, z)
+			z.buildmode = z:GetNWBool("_Kyle_Buildmode",false)
+		end
+    LocalPlayer().buildmode = LocalPlayer():GetNWBool("_Kyle_Buildmode",false)
+end)
+
+function DrawNameTitle(players,texter,col)
+	local textalign = 1
+	local distancemulti = 2
+	local vStart = LocalPlayer():GetPos()
+	local vEnd
+	for k, v in pairs(players) do
+
+		if v:Alive() then
+
+			local vStart = LocalPlayer():GetPos()
+			local vEnd = v:GetPos() + Vector(0,0,40)
+			local trace = util.TraceLine( {
+				start = vStart,
+				endpos = vEnd,
+				filter = function( ent ) if ( ent:GetClass() == "prop_physics" ) then return true end end
+			} )
+			if trace.Entity != NULL then
+				--Do nothing!
+			else
+				local mepos = LocalPlayer():GetPos()
+				local tpos = v:GetPos()
+				local tdist = mepos:Distance(tpos)
+
+				if tdist <= 1000 then
+					local zadj = 0.03334 * tdist
+					local pos = v:GetPos() + Vector(0,0,v:OBBMaxs().z + 5 + zadj)
+					pos = pos:ToScreen()
+
+					local alphavalue = (600 * distancemulti) - (tdist/1.5)
+					alphavalue = math.Clamp(alphavalue, 0, 255)
+
+					local outlinealpha = (450 * distancemulti) - (tdist/2)
+					outlinealpha = math.Clamp(outlinealpha, 0, 255)
+
+
+					local playercolour = Color(255,255,255)
+					titlefont = "Coolvetica20"
+					if v!=LocalPlayer() then
+						draw.SimpleTextOutlined(texter, titlefont, pos.x, pos.y + 6, col,textalign,1,1,Color(0,0,0,outlinealpha))
+					end
 				end
 			end
 		end
-		
-		--add setting later for render mode
-		z = string.Split( _Kyle_Buildmode["highlightbuilderscolor"],"," )
-		if _Kyle_Buildmode["highlightbuilders"]=="1" then halo.Add(w, Color(z[1],z[2],z[3]), 4, 4, 1, true) end
-		
-		z = string.Split( _Kyle_Buildmode["highlightpvperscolor"],"," )		
-		if _Kyle_Buildmode["highlightpvpers"]=="1" then halo.Add(x, Color(z[1],z[2],z[3]), 4, 4, 1, true) end
-	else	
-		LocalPlayer():ConCommand( "kylebuildmode" ) 
 	end
-end)
+end
 
 --VERY EXPERIMENTAL ANTI-PROPMINGE CODE BELOW
 --IF USED, EXPECT BUGS AND CRASHES
 --[[
 hook.Add("PhysgunPickup", "KylebuildmodePropKill", function(y,z)
-	if IsValid(z) and (not z:IsPlayer()) and y.buildmode and _Kyle_Buildmode["antipropkill"]=="1" then 
+	if IsValid(z) and (not z:IsPlayer()) and y.buildmode and _Kyle_Buildmode["antipropkill"]=="1" then
 		z:SetNWInt("RenderMode", z:GetRenderMode())
 		z:SetNWInt("Alpha", z:GetColor()["a"])
 		z:SetColor( Color( z:GetColor()["r"], z:GetColor()["g"], z:GetColor()["b"], 200 ) )
@@ -90,11 +119,11 @@ end)
 
 local function UnNoclip(z)
 	z:SetNWBool("Colliding", false)
-	timer.Simple( 0.1, function() 
+	timer.Simple( 0.1, function()
 		if not z:GetNWBool("Colliding") and z:IsValid() then
 			z:SetNWBool("NoCollide", false)
 			z:SetColor( Color( z:GetColor()["r"], z:GetColor()["g"], z:GetColor()["b"], z:GetNWInt("Alpha") ) )
-			z:SetRenderMode(z:GetNWInt("RenderMode")) 
+			z:SetRenderMode(z:GetNWInt("RenderMode"))
 		elseif z:IsValid() then
 			UnNoclip(z)
 		end
@@ -102,7 +131,7 @@ local function UnNoclip(z)
 end
 
 hook.Add("PhysgunDrop", "KylebuildmodePropKill", function(y,z)
-	if IsValid(z) and (not z:IsPlayer()) and y.buildmode and _Kyle_Buildmode["antipropkill"]=="1" then 
+	if IsValid(z) and (not z:IsPlayer()) and y.buildmode and _Kyle_Buildmode["antipropkill"]=="1" then
 		z:SetPos(z:GetPos())
 		UnNoclip(z)
 	end
@@ -111,10 +140,10 @@ end)
 hook.Add("ShouldCollide", "Kylebuildmodetrycollide", function(y, z)
 	print(y, y:GetNWBool("_Kyle_Buildmode"))
 	print(z, z:GetNWBool("_kyle_Buildmode"))
-	
+
 	if (y:IsPlayer() or z:IsPlayer()) and _Kyle_Buildmode["antipropkill"]=="1" then
-		
-		if y:IsPlayer() then 
+
+		if y:IsPlayer() then
 			z:SetNWBool("Colliding", true)
 			if z:IsVehicle() then
 							print("a")
@@ -132,8 +161,8 @@ hook.Add("ShouldCollide", "Kylebuildmodetrycollide", function(y, z)
 				end
 			end
 		end
-		
-		if (y:GetNWBool("NoCollide") or z:GetNWBool("NoCollide")) then		
+
+		if (y:GetNWBool("NoCollide") or z:GetNWBool("NoCollide")) then
 			return false
 		end
 	end
@@ -143,6 +172,11 @@ end)
 hook.Add("PlayerNoClip", "KylebuildmodeNoclip", function(y,z)
 	if _Kyle_Buildmode["allownoclip"]=="1" then
 		y:SetNWBool("kylenocliped", z)
+    if  z == false or y.buildmode then else
+      if SERVER then
+      y:SendLua([[notification.AddLegacy("Nie mozesz uzywac noclipa w trybie PVP (wpisz !build aby zmienic)",0,4)]])
+    end
+    end
 		return z == false or y.buildmode
 	end
 end )
@@ -154,7 +188,7 @@ hook.Add("PlayerSpawn", "kyleBuildmodePlayerSpawn",  function(z)
 	z:SetNWBool("_kyle_died", false)
 end )
 
-hook.Add("PlayerInitialSpawn", "kyleBuildmodePlayerInitilaSpawn", function (z) 
+hook.Add("PlayerInitialSpawn", "kyleBuildmodePlayerInitilaSpawn", function (z)
 	if _Kyle_Buildmode["spawnwithbuildmode"]=="1" then
 		_kyle_Buildmode_Enable(z)
 	end
@@ -179,24 +213,39 @@ hook.Add("PlayerSpawnSWEP", "kyleBuildmodeTrySWEPSpawn", function(y,z)
 end)
 
 hook.Add("EntityTakeDamage", "kyleBuildmodeTryTakeDamage", function(y,z)
-	return  y.buildmode or z:GetAttacker().buildmode
+  local att = z:GetAttacker()
+  --print(att)
+  local shoulddmg =  y.buildmode or att.buildmode
+  if y:IsPlayer() and att:IsPlayer() then
+  if att != v and att != nil and att:IsPlayer() and y.buildmode == true then
+att:SendLua([[
+  if LocalPlayer().buildmode == true then
+  --GAMEMODE:AddNotify("Nie możesz zabijać graczy będąc w trybie Budowania.",NOTIFY_GENERIC, 5)
+else
+  GAMEMODE:AddNotify("Nie możesz zabijać graczy będących w trybie Budowania.",NOTIFY_GENERIC, 5)
+end
+  ]])
+end
+end
+  if not att.buildmode and y.buildmode then att:TakeDamage(z:GetDamage(),nil,nil) end
+  return shoulddmg
 end)
 
 hook.Add("PlayerCanPickupWeapon", "kyleBuildmodeTrySWEPPickup", function(y,z)
     if y.buildmode and _Kyle_Buildmode["restrictweapons"]=="1" and not table.HasValue( _Kyle_Buildmode["buildloadout"], string.Split(string.Split(tostring(z),"][", true)[2],"]", true)[1]) then
         if y:GetNWBool("_kyle_buildNotify")then
 			y:SetNWBool("_kyle_buildNotify", true)
-            y:SendLua("GAMEMODE:AddNotify(\"You cannot pick up weapons while in Build Mode.\",NOTIFY_GENERIC, 5)") 
+            y:SendLua("GAMEMODE:AddNotify(\"You cannot pick up weapons while in Build Mode.\",NOTIFY_GENERIC, 5)")
             timer.Create( "_kyle_NotifyBuildmode", 5, 1, function()
                 y:SetNWBool("_kyle_buildNotify", false)
             end)
 	   end
-	   return false   
+	   return false
     end
 end)
 
 local CATEGORY_NAME = "_Kyle_1"
-local buildmode = ulx.command( "_Kyle_1", "ulx buildmode", function( calling_ply, target_plys, should_revoke )
+local buildmode = ulx.command( "_Kyle_1", "ulx build", function( calling_ply, target_plys, should_revoke )
     local affected_plys = {}
 	for y,z in pairs(target_plys) do
         if not z.buildmode and not should_revoke then
