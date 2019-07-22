@@ -189,9 +189,9 @@ hook.Add("PlayerSpawn", "kyleBuildmodePlayerSpawn",  function(z)
 end )
 
 hook.Add("PlayerInitialSpawn", "kyleBuildmodePlayerInitilaSpawn", function (z)
-	if _Kyle_Buildmode["spawnwithbuildmode"]=="1" then
+	
 		_kyle_Buildmode_Enable(z)
-	end
+
 end )
 
 hook.Add("PostPlayerDeath", "kyleBuildmodePostPlayerDeath",  function(z)
