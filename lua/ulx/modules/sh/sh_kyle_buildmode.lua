@@ -189,9 +189,9 @@ hook.Add("PlayerSpawn", "kyleBuildmodePlayerSpawn",  function(z)
 end )
 
 hook.Add("PlayerInitialSpawn", "kyleBuildmodePlayerInitilaSpawn", function (z)
-	if _Kyle_Buildmode["spawnwithbuildmode"]=="1" then
+	
 		_kyle_Buildmode_Enable(z)
-	end
+
 end )
 
 hook.Add("PostPlayerDeath", "kyleBuildmodePostPlayerDeath",  function(z)
@@ -215,6 +215,7 @@ end)
 hook.Add("EntityTakeDamage", "kyleBuildmodeTryTakeDamage", function(y,z)
   local att = z:GetAttacker()
   --print(att)
+  if IsValid(y) and y:GetClass() == "fishing_mod_seagull" then return end
   local shoulddmg =  y.buildmode or att.buildmode
   if y:IsPlayer() and att:IsPlayer() then
   if att != v and att != nil and att:IsPlayer() and y.buildmode == true then
