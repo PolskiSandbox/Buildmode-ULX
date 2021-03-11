@@ -229,6 +229,7 @@ end
 end
 end
   if not att.buildmode and y.buildmode then att:TakeDamage(z:GetDamage(),nil,nil) end
+  if (y.banni or GetGlobalBool("wojenna")) then shoulddmg = false end
   return shoulddmg
 end)
 
